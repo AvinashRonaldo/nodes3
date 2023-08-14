@@ -118,6 +118,10 @@ router.post("/bucket/create/:bucketName",verifyToken,async(req,res) => {
         if (!bucketName) {
             return res.json({ status: false, message: "Bucket Name is Mandatory" });
         }
+        const match = await File.findOne({bucket_name:bucketName});
+        if(match){
+            return res.status(401).json({error:"Bucket Name already exists!Choose another bucket name"});
+        }
         const userName = req.user.username;
         const folderPath = `${rootDirectory}/${userName}/${bucketName}`;
         if(fs.existsSync(folderPath)){
@@ -134,7 +138,6 @@ router.post("/bucket/:bucketName/upload",verifyToken,upload.single('file'),async
     try{
         const bucketName = req.params.bucketName;
         const path = `${rootDirectory}/${req.user.username}/${bucketName}`
-        console.log(path);
         if(!fs.existsSync(path)){
             return res.status(400).json({error:'Bucket do not exists'});
         }
@@ -146,6 +149,32 @@ router.post("/bucket/:bucketName/upload",verifyToken,upload.single('file'),async
             file_type:req.file.mimetype
         });
         await file.save();
+        res.json({message:"Files uploaded successfully!"});
+    }catch(err){
+        console.log(err);
+    }
+})
+
+router.post("/bucket/:bucketName/upload/files",verifyToken,upload.array('files'),async(req,res) => {
+    try{
+        const bucketName = req.params.bucketName;
+        const userName = req.user.username;
+        const path = `${rootDirectory}/${userName}/${bucketName}`
+        if(!fs.existsSync(path)){
+            return res.status(400).json({error:'Bucket do not exists'});
+        }
+        console.log(req.files);
+        const files  = req.files;
+        files.forEach(async(file) => {
+           let newFile =  new File({
+            file_name:file.originalname,
+            uploaded_by:userName,
+            bucket_name:bucketName,
+            file_path:file.path,
+            file_type:file.mimetype
+            });
+            await newFile.save();
+        })
         res.json({message:"Files uploaded successfully!"});
     }catch(err){
         console.log(err);
